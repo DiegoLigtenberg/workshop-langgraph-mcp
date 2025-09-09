@@ -55,13 +55,13 @@ async def run_external_mcp_agent(input_state):
         # Your local math server
         "local_math": {
             "command": "python",
-            "args": [str(current_dir / "math_server.py")],
+            "args": [str(current_dir / "local_mcp_servers" / "math_server.py")],
             "transport": "stdio",
         },
         # Your local weather server  
         "local_weather": {
             "command": "python",
-            "args": [str(current_dir / "weather_server.py")],
+            "args": [str(current_dir / "local_mcp_servers" / "weather_server.py")],
             "transport": "stdio",
         },
         # Office Word MCP Server (using uv - no local installation needed)

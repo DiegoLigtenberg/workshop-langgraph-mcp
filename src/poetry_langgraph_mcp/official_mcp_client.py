@@ -6,8 +6,12 @@ from langchain_mcp_adapters.tools import load_mcp_tools
 from langgraph.prebuilt import create_react_agent
 from poetry_langgraph_mcp.configuration import get_llm
 
+'''
+single client example from official mcp server documentation
+'''
+
 async def run_mcp_demo():
-    server_path = Path(__file__).parent / "math_server.py"
+    server_path = Path(__file__).parent / "local_mcp_servers" / "math_server.py"
     server_params = StdioServerParameters(command="python", args=[str(server_path)])
     
     async with stdio_client(server_params) as (read, write):

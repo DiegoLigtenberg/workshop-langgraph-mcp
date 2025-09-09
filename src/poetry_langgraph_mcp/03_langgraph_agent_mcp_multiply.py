@@ -59,8 +59,8 @@ async def run_mcp_agent(input_state):
     """Load MCP tools from multiple servers and run the LangGraph agent"""
     # Get absolute paths to server files
     current_dir = Path(__file__).parent
-    math_server_path = current_dir / "math_server.py"
-    weather_server_path = current_dir / "weather_server.py"
+    math_server_path = current_dir / "local_mcp_servers" / "math_server.py"
+    weather_server_path = current_dir / "local_mcp_servers" / "weather_server.py"
     
     # Initialize MultiServerMCPClient with both servers
     client = MultiServerMCPClient(
