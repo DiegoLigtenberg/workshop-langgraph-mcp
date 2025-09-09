@@ -79,13 +79,6 @@ poetry add package-name
   - **Lovable** - AI development platform using MCP for project management
 - **Flow**: Human Question → LangGraph Agent → MCP Tools → Response
 
-### Why MultiServerMCPClient?
-
-Instead of connecting to one server at a time, `MultiServerMCPClient` allows you to:
-- **Connect to multiple servers** (math, weather, office, etc.) simultaneously
-- **Access all tools** from a single unified interface
-- **Scale easily** by adding new servers without changing agent code
-
 ## Project Examples
 
 This repository contains several examples demonstrating MCP integration:
