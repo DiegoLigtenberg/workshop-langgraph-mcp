@@ -59,7 +59,7 @@ def build_graph(tools):
 
 async def run_mcp_agent():
     """Load MCP tools and run the LangGraph agent"""
-    server_path = Path(__file__).parent / "math_server.py"
+    server_path = Path(__file__).parent / "local_mcp_servers" / "math_server.py"
     server_params = StdioServerParameters(command="python", args=[str(server_path)])
     
     async with stdio_client(server_params) as (read, write):
