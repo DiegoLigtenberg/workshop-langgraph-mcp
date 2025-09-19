@@ -91,7 +91,7 @@ if __name__ == "__main__":
     # setup input state
     input_state = MessageState(messages=[HumanMessage(content="Please, make a word document where you add 3 and 4")])
 
-    # Run the rgaph
+    # Run the graph with the input state and the config from the langraph
     result = react_graph_memory.invoke(input_state, config)
 
     for m in result['messages']:
