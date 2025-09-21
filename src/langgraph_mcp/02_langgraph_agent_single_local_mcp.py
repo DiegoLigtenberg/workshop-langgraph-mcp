@@ -10,7 +10,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from langchain_mcp_adapters.tools import load_mcp_tools
-from poetry_langgraph_mcp.configuration import get_llm
+from langgraph_mcp.configuration import get_llm
 
 """
 LangGraph ReAct Agent with MCP Server Tools

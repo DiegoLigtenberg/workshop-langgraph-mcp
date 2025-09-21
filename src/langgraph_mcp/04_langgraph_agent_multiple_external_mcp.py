@@ -8,7 +8,7 @@ from typing import Annotated, List
 from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from poetry_langgraph_mcp.configuration import get_llm
+from langgraph_mcp.configuration import get_llm
 
 """
 LangGraph ReAct Agent with External MCP Servers
@@ -70,6 +70,7 @@ async def run_external_mcp_agent(input_state):
             "args": ["tool", "run", "--from", "office-word-mcp-server", "word_mcp_server"],
             "transport": "stdio",
         },
+        # add other external servers here
     }
     
     try:

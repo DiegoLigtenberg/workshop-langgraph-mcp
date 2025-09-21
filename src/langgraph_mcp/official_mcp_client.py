@@ -4,7 +4,7 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from langchain_mcp_adapters.tools import load_mcp_tools
 from langgraph.prebuilt import create_react_agent
-from poetry_langgraph_mcp.configuration import get_llm
+from langgraph_mcp.configuration import get_llm
 
 '''
 single client example from official mcp server documentation
