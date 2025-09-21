@@ -4,7 +4,6 @@ from fastapi.staticfiles import StaticFiles
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
-import asyncio
 from langchain_core.messages import HumanMessage
 from langgraph.graph import StateGraph, START
 from langgraph.prebuilt import tools_condition, ToolNode
@@ -14,6 +13,8 @@ from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from poetry_langgraph_mcp.configuration import get_llm
+
+VERBOSE = False
 
 # Define the state of the graph
 class MessageState(BaseModel):
@@ -105,7 +106,7 @@ async def chat_endpoint(request: Request, user_input: str = Form(...), thread_id
             {"messages": [HumanMessage(content=user_input)]},
             config=config
         ):
-            print("Event:", event)
+            if VERBOSE: print("Event:", event) # this prints each event happening in the graph in CLI
             if event.get("event") == "on_chat_model_stream":
                 chunk = event["data"]["chunk"]
                 if hasattr(chunk, "content") and chunk.content:
