@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import Annotated, List
 from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
-from poetry_langgraph_mcp.configuration import get_llm
+from langgraph_mcp.configuration import get_llm
 
 """
 LangGraph ReAct Agent with Local Tools
