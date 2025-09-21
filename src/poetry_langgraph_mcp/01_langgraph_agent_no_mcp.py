@@ -1,8 +1,7 @@
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage, AnyMessage
+from langchain_core.messages import HumanMessage, AnyMessage
 from langgraph.graph import StateGraph, START
 from langgraph.prebuilt import tools_condition, ToolNode
 from pydantic import BaseModel
-from rich import print
 from typing import Annotated, List
 from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
@@ -91,7 +90,7 @@ if __name__ == "__main__":
     # setup input state
     input_state = MessageState(messages=[HumanMessage(content="Please, make a word document where you add 3 and 4")])
 
-    # Run the rgaph
+    # Run the graph with the input state and the config from the langraph
     result = react_graph_memory.invoke(input_state, config)
 
     for m in result['messages']:
