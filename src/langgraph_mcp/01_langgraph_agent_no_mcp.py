@@ -6,6 +6,7 @@ from typing import Annotated, List
 from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph_mcp.configuration import get_llm
+from langchain_core.runnables.graph_mermaid import MermaidDrawMethod
 
 """
 LangGraph ReAct Agent with Local Tools
@@ -68,12 +69,17 @@ def build_graph(tools):
         "assistant",
         tools_condition,
     )
-    # note: The tool call output will be sent back to the assistant node (to 'summarize' the tool call)
+    # Note: The tool call output will be sent back to the assistant node (to 'summarize' the tool call)
     builder.add_edge("tools", "assistant") 
 
     memory = MemorySaver()
     react_graph_memory = builder.compile(checkpointer=memory)
-    return react_graph_memory
+    
+    # Visualise the graph
+    png_bytes = react_graph_memory.get_graph().draw_mermaid_png()
+    with open("src/langgraph_mcp/graph_visualisation/model_graph.png", "wb") as f:
+        f.write(png_bytes)        
+        return react_graph_memory
 
 if __name__ == "__main__":
     # setup llm and tools
