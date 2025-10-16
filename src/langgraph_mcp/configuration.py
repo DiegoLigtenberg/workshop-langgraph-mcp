@@ -22,7 +22,6 @@ def get_llm(llm_type="openai"):
             model=model
         )
     else:
-        # Default to Qwen (Ollama)
         return ChatOllama(model="qwen3:8b")
 
 

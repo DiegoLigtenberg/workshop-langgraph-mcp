@@ -69,14 +69,15 @@ def build_graph(tools):
         "assistant",
         tools_condition,
     )
-    # note: The tool call output will be sent back to the assistant node (to 'summarize' the tool call)
+    # Note: The tool call output will be sent back to the assistant node (to 'summarize' the tool call)
     builder.add_edge("tools", "assistant") 
 
     memory = MemorySaver()
     react_graph_memory = builder.compile(checkpointer=memory)
     
+    # Visualise the graph
     png_bytes = react_graph_memory.get_graph().draw_mermaid_png()
-    with open("workshop-langgraph-mcp/model_graph.png", "wb") as f:
+    with open("src/langgraph_mcp/graph_visualisation/model_graph.png", "wb") as f:
         f.write(png_bytes)        
         return react_graph_memory
 
