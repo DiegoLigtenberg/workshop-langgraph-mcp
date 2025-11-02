@@ -15,7 +15,6 @@ from langgraph_mcp.configuration import get_llm
 
 VERBOSE = False
 
-
 # Define the state of the graph
 class MessageState(BaseModel):
     messages: Annotated[List, add_messages]
@@ -81,12 +80,10 @@ async def setup_langgraph_app():
         # Fallback to basic tools if MCP servers are unavailable
         return build_graph([])
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.langgraph_app = await setup_langgraph_app()
     yield
-
 
 app = FastAPI(lifespan=lifespan)
 

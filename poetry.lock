@@ -221,6 +221,9 @@ python-versions = ">=3.10"
 groups = ["main", "dev"]
 =======
 groups = ["main"]
+<<<<<<< HEAD
+>>>>>>> origin/main
+=======
 >>>>>>> origin/main
 files = [
     {file = "click-8.2.1-py3-none-any.whl", hash = "sha256:61a3265b914e850b85317d0b3109c7f8cd35a670f963866005d6ef1d5175a12b"},
@@ -2286,4 +2289,8 @@ cffi = ["cffi (>=1.17) ; python_version >= \"3.13\" and platform_python_implemen
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<4.0"
+<<<<<<< HEAD
 content-hash = "5d1ea9b90b307487d9e87b4c1430e6ca893b0331186d3d94e3e039eda9b52e22"
+=======
+content-hash = "3964f41599f139f221bc0c85015188965d864dbb00acdd221fd96ed71a95d30d"
+>>>>>>> origin/main
