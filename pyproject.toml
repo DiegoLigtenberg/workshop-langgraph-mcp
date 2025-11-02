@@ -7,7 +7,7 @@ authors = [
 ]
 license = {text = "mit"}
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<4.0"
 dependencies = [
     "mcp (>=1.13.1,<2.0.0)",
     "langgraph (>=0.6.6,<0.7.0)",
@@ -19,9 +19,15 @@ dependencies = [
     "ruff (>=0.12.12,<0.13.0)",
     "fastapi (>=0.116.2,<0.117.0)",
     "uvicorn (>=0.35.0,<0.36.0)",
-    "python-multipart (>=0.0.20,<0.0.21)"
+    "python-multipart (>=0.0.20,<0.0.21)",
+    "pyppeteer (>=2.0.0,<3.0.0)"
 ]
 
+[tool.poetry]
+packages = [{include = "langgraph_mcp", from = "src"}]
+
+[tool.poetry.group.dev.dependencies]
+black = "^25.9.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
