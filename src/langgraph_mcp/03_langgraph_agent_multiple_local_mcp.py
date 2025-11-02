@@ -1,6 +1,6 @@
 import asyncio
 from pathlib import Path
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage, AnyMessage
+from langchain_core.messages import HumanMessage, AnyMessage
 from langgraph.graph import StateGraph, START
 from langgraph.prebuilt import tools_condition, ToolNode
 from pydantic import BaseModel
@@ -22,22 +22,27 @@ Example:
   Assistant: "3 + 4 = 7. Weather in NYC is Sunny, 72°F"
 """
 
+
 # Define the state of the graph.
 class MessageState(BaseModel):
     messages: Annotated[List[AnyMessage], add_messages]
 
+
 def create_assistant(llm_with_tools):
     """Create an assistant function with access to the LLM"""
-    async def assistant(state: MessageState):    
+
+    async def assistant(state: MessageState):
         state.messages = await llm_with_tools.ainvoke(state.messages)
         return state
+
     return assistant
+
 
 def build_graph(tools):
     """Build and return the LangGraph ReAct agent with MCP tools"""
     llm = get_llm("openai")
     llm_with_tools = llm.bind_tools(tools)
-    
+
     builder = StateGraph(MessageState)
     # Define nodes
     builder.add_node("assistant", create_assistant(llm_with_tools))
@@ -49,11 +54,12 @@ def build_graph(tools):
         tools_condition,
     )
     # note: The tool call output will be sent back to the assistant node (to 'summarize' the tool call)
-    builder.add_edge("tools", "assistant") 
+    builder.add_edge("tools", "assistant")
 
     memory = MemorySaver()
     react_graph_memory = builder.compile(checkpointer=memory)
     return react_graph_memory
+
 
 async def run_mcp_agent(input_state):
     """Load MCP tools from multiple servers and run the LangGraph agent"""
@@ -61,7 +67,7 @@ async def run_mcp_agent(input_state):
     current_dir = Path(__file__).parent
     math_server_path = current_dir / "local_mcp_servers" / "math_server.py"
     weather_server_path = current_dir / "local_mcp_servers" / "weather_server.py"
-    
+
     # Initialize MultiServerMCPClient with both servers
     client = MultiServerMCPClient(
         {
@@ -71,35 +77,38 @@ async def run_mcp_agent(input_state):
                 "transport": "stdio",
             },
             "weather": {
-                "command": "python", 
+                "command": "python",
                 "args": [str(weather_server_path)],
                 "transport": "stdio",
-            }
+            },
         }
     )
-    
+
     # Load tools from all servers
     tools = await client.get_tools()
-    
+
     print(f"Loaded {len(tools)} MCP tools from multiple servers:")
     for tool in tools:
         print(f"  - {tool.name}: {tool.description}")
-    
+
     graph = build_graph(tools)
     config = {"configurable": {"thread_id": "1"}}
-    
+
     # Test with math question
     result = await graph.ainvoke(input_state, config)
-    
+
     return result
 
-if __name__ == "__main__":    
+
+if __name__ == "__main__":
     input_state = {"messages": [HumanMessage(content="What's (3 + 5) * 12?")]}
     result = asyncio.run(run_mcp_agent(input_state))
-    for m in result['messages']:
+    for m in result["messages"]:
         m.pretty_print()
-        
-    input_state = {"messages": [HumanMessage(content="What's the weather forecast in london?")]}
+
+    input_state = {
+        "messages": [HumanMessage(content="What's the weather forecast in london?")]
+    }
     result = asyncio.run(run_mcp_agent(input_state))
-    for m in result['messages']:
+    for m in result["messages"]:
         m.pretty_print()

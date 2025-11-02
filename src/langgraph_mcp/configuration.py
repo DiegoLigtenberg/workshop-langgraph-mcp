@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 def get_llm(llm_type="openai"):
     """
     Returns an LLM instance.
@@ -16,10 +17,7 @@ def get_llm(llm_type="openai"):
         model = os.getenv("AZURE_OPENAI_MODEL", "gpt-4o")
         version = os.getenv("AZURE_OPENAI_MODEL_VERSION", "2024-08-01-preview")
         return AzureChatOpenAI(
-            api_key=api_key,
-            azure_endpoint=endpoint,
-            api_version=version,
-            model=model
+            api_key=api_key, azure_endpoint=endpoint, api_version=version, model=model
         )
     else:
         return ChatOllama(model="qwen3:8b")
