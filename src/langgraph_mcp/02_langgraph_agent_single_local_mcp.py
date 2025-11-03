@@ -1,6 +1,6 @@
 import asyncio
 from pathlib import Path
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage, AnyMessage
+from langchain_core.messages import HumanMessage, AnyMessage
 from langgraph.graph import StateGraph, START
 from langgraph.prebuilt import tools_condition, ToolNode
 from pydantic import BaseModel
@@ -24,22 +24,27 @@ Example:
   Assistant: "The result of adding 3 and 4 is 7"
 """
 
+
 # Define the state of the graph.
 class MessageState(BaseModel):
     messages: Annotated[List[AnyMessage], add_messages]
 
+
 def create_assistant(llm_with_tools):
     """Create an assistant function with access to the LLM"""
-    async def assistant(state: MessageState):    
+
+    async def assistant(state: MessageState):
         state.messages = await llm_with_tools.ainvoke(state.messages)
         return state
+
     return assistant
+
 
 def build_graph(tools):
     """Build and return the LangGraph ReAct agent with MCP tools"""
     llm = get_llm("openai")
     llm_with_tools = llm.bind_tools(tools)
-    
+
     builder = StateGraph(MessageState)
     # Define nodes
     builder.add_node("assistant", create_assistant(llm_with_tools))
@@ -51,38 +56,40 @@ def build_graph(tools):
         tools_condition,
     )
     # note: The tool call output will be sent back to the assistant node (to 'summarize' the tool call)
-    builder.add_edge("tools", "assistant") 
+    builder.add_edge("tools", "assistant")
 
     memory = MemorySaver()
     react_graph_memory = builder.compile(checkpointer=memory)
     return react_graph_memory
 
+
 async def run_mcp_agent():
     """Load MCP tools and run the LangGraph agent"""
     server_path = Path(__file__).parent / "local_mcp_servers" / "math_server.py"
     server_params = StdioServerParameters(command="python", args=[str(server_path)])
-    
+
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
-            tools = await load_mcp_tools(session)            
-            
+            tools = await load_mcp_tools(session)
+
             print(f"Loaded {len(tools)} MCP tools from the sever::")
             for tool in tools:
                 print(f"  - {tool.name}: {tool.description}")
-            
+
             graph = build_graph(tools)
             config = {"configurable": {"thread_id": "1"}}
-            
+
             input_state = {"messages": [HumanMessage(content="Add 3 and 4.")]}
             result = await graph.ainvoke(input_state, config)
-            
+
             # Show only the final answer
-            # final_answer = result['messages'][-1].contentac
+            # final_answer = result['messages'][-1].content
             return result
+
 
 if __name__ == "__main__":
     result = asyncio.run(run_mcp_agent())
     # print(f"Final Answer: {result}")
-    for m in result['messages']:
+    for m in result["messages"]:
         m.pretty_print()
