@@ -18,10 +18,6 @@
   --gradient-brand: linear-gradient(90deg, var(--color-brand-orange) 0%, var(--color-brand-red) 40%, var(--color-brand-purple) 85%, var(--color-brand-darkpurple) 100%);
   --gradient-glass: linear-gradient(135deg, var(--color-bright-40) 0%, var(--color-bright-100) 50%, var(--color-bright-40) 100%);
 
-  --font-chat: 16px/1.5 'Josefin Sans', sans-serif;
-  --font-system: 14px 'Noto Sans', sans-serif;
-  --font-interactive: 16px 'Noto Sans', sans-serif;
-
   /* Theme variables - Light mode defaults */
   --bg-primary: var(--color-bright-100);
   --bg-secondary: var(--color-bright-80);
@@ -146,12 +142,21 @@ body {
 }
 
 .chat {
+  width: 100%;
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  align-items: center;
   padding: 0 24px;
   overflow-y: auto;
+}
+
+.chat-inner {
+  width: 100%;
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
 }
 
 .message {
@@ -166,27 +171,24 @@ body {
   border-radius: 16px 0 16px 16px;
   background: var(--bg-user-message);
   color: var(--text-primary);
-  font: var(--font-chat);
 }
 
 .message.ai {
   padding: 12px;
   align-self: flex-start;
   color: var(--text-primary);
-  font: var(--font-chat);
 }
 
 .message.tool {
   max-width: 40%;
   align-self: flex-start;
   color: var(--text-secondary);
-  font: var(--font-system);
 }
 
 .input-area {
   height: 64px;
   width: 100%;
-  max-width: 600px;
+  max-width: 800px;
   min-width: 300px;
   display: flex;
   gap: 12px;
@@ -204,7 +206,6 @@ body {
   background-color: transparent;
   border: none;
   color: var(--text-primary);
-  font: var(--font-interactive);
 }
 
 .input::placeholder {

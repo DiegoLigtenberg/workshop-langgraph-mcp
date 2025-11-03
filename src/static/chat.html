@@ -8,8 +8,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    <link rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Josefin+Sans:ital,wght@0,100..700;1,100..700&family=Noto+Sans:ital,wght@0,100..900;1,100..900&display=swap">
 </head>
 <body>
     <div class="container" id="container">
@@ -29,7 +27,11 @@
                 <div class="top-bar" id="main-top-bar">
                     <h1>Chatbot</h1>
                 </div>
-            <div class="chat" id="chat-window"></div>
+            <div class="chat" id="chat-window">
+                <div class="chat-inner" id="chat-inner">
+                    <!-- messages here -->
+                </div>
+            </div>
             <div class="input-area" id="input-area">
                 <input class="input" id="user-input" type="text" placeholder="Type your message..." autofocus />
                 <button class="material-symbols-rounded submit-button" id="send-btn">input_circle</button>

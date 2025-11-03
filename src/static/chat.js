@@ -9,7 +9,7 @@ if (!thread_id) {
     localStorage.setItem('thread_id', thread_id);
 }
 
-const chatWindow = document.getElementById('chat-window');
+const chatWindow = document.getElementById('chat-inner');
 const userInput = document.getElementById('user-input');
 const sendBtn = document.getElementById('send-btn');
 const newChatBtn = document.getElementById('new-chat-btn');
