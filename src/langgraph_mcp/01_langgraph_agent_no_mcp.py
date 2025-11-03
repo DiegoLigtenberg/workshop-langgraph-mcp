@@ -30,7 +30,6 @@ def multiply(a: int, b: int) -> int:
     return a * b
 
 
-# This will be a tool
 def add(a: int, b: int) -> int:
     """Adds a and b.
 
@@ -63,7 +62,7 @@ def assistant(state: MessageState):
 
 def build_graph(tools):
     builder = StateGraph(MessageState)
-    # Define nodes
+    # Define nodes in the graph
     builder.add_node("assistant", assistant)
     builder.add_node("tools", ToolNode(tools))
     # Define edges
@@ -85,11 +84,10 @@ def build_graph(tools):
         return react_graph_memory
 
 
-if __name__ == "__main__":
-    # setup llm and tools
+if __name__ == "__main__":    
     llm = get_llm("openai")
-    tools = [add, multiply, divide]  # this will come from mcp server
-    llm_with_tools = llm.bind_tools(tools)
+    tools = [add, multiply, divide]  # when using mcp threse tools are initialized from an mcp server
+    llm_with_tools = llm.bind_tools(tools) # this binds the tools to the llm
 
     # build graph
     react_graph_memory = build_graph(tools=tools)
@@ -97,7 +95,7 @@ if __name__ == "__main__":
     # setup config
     config = {"configurable": {"thread_id": "1"}}
 
-    # setup input state
+    # setup input state for the graph
     input_state = MessageState(
         messages=[
             HumanMessage(content="Please, make a word document where you add 3 and 4")
@@ -109,12 +107,3 @@ if __name__ == "__main__":
 
     for m in result["messages"]:
         m.pretty_print()
-        # print(m)
-
-    # Graph has memory with same thread id
-    """
-    input_state = MessageState(messages=[HumanMessage(content="what was my last question?")])
-    result = react_graph_memory.invoke(input_state, config)
-    for m in result['messages']:
-        m.pretty_print()
-    """
