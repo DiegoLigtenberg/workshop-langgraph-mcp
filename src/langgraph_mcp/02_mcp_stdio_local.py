@@ -61,35 +61,51 @@ def build_graph(tools):
     return react_graph_memory
 
 
+async def validate_servers(all_servers):
+    """Validate and filter MCP servers, returning only successful ones"""
+    successful_servers = {}
+    for server_name, server_config in all_servers.items():
+        try:
+            test_client = MultiServerMCPClient({server_name: server_config})
+            await test_client.get_tools()
+            successful_servers[server_name] = server_config
+            print(f"Successfully loaded: {server_name}")
+        except Exception as e:
+            print(f"Failed to load {server_name}: {e}")
+    return successful_servers
+
+
 async def run_mcp_agent(input_state):
     """Load MCP tools from multiple servers and run the LangGraph agent"""
-    # Get absolute paths to server files
     current_dir = Path(__file__).parent
-    math_server_path = current_dir / "local_mcp_servers" / "math_server.py"
-    weather_server_path = current_dir / "local_mcp_servers" / "weather_server.py"
 
-    # Initialize MultiServerMCPClient with both servers
-    client = MultiServerMCPClient(
-        {
-            "math": {
-                "command": "python",
-                "args": [str(math_server_path)],
-                "transport": "stdio",
-            },
-            "weather": {
-                "command": "python",
-                "args": [str(weather_server_path)],
-                "transport": "stdio",
-            },
-        }
-    )
+    all_servers = {
+        "math": {
+            "command": "python",
+            "args": [str(current_dir / "local_mcp_servers" / "math_server.py")],
+            "transport": "stdio",
+        },
+        "weather": {
+            "command": "python",
+            "args": [str(current_dir / "local_mcp_servers" / "weather_server.py")],
+            "transport": "stdio",
+        },
+    }
 
-    # Load tools from all servers
-    tools = await client.get_tools()
+    successful_servers = await validate_servers(all_servers)
 
-    print(f"Loaded {len(tools)} MCP tools from multiple servers:")
-    for tool in tools:
-        print(f"  - {tool.name}: {tool.description}")
+    if successful_servers:
+        client = MultiServerMCPClient(successful_servers)
+        tools = await client.get_tools()
+
+        print(
+            f"Loaded {len(tools)} MCP tools from {len(successful_servers)} server(s):"
+        )
+        for tool in tools:
+            print(f"  - {tool.name}: {tool.description}")
+    else:
+        print("No servers loaded! Terminating.")
+        raise RuntimeError("No MCP servers available")
 
     graph = build_graph(tools)
     config = {"configurable": {"thread_id": "1"}}

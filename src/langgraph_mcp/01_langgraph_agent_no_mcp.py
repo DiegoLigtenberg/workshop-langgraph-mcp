@@ -84,10 +84,14 @@ def build_graph(tools):
         return react_graph_memory
 
 
-if __name__ == "__main__":    
+if __name__ == "__main__":
     llm = get_llm("openai")
-    tools = [add, multiply, divide]  # when using mcp threse tools are initialized from an mcp server
-    llm_with_tools = llm.bind_tools(tools) # this binds the tools to the llm
+    tools = [
+        add,
+        multiply,
+        divide,
+    ]  # when using mcp threse tools are initialized from an mcp server
+    llm_with_tools = llm.bind_tools(tools)  # this binds the tools to the llm
 
     # build graph
     react_graph_memory = build_graph(tools=tools)

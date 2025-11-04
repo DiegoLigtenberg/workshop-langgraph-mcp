@@ -3,6 +3,7 @@ from fastapi.responses import StreamingResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 from langchain_core.messages import HumanMessage
 from langgraph.graph import StateGraph, START
 from langgraph.prebuilt import tools_condition, ToolNode
@@ -13,7 +14,23 @@ from langgraph.checkpoint.memory import MemorySaver
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph_mcp.configuration import get_llm
 
+"""
+LangGraph Agent with External MCP Packages (stdio)
+
+This example shows:
+- Local MCP servers (math, weather)  
+- External MCP packages installed via uv (office-word-mcp-server)
+
+Flow: User types in web interface → Agent uses tools → Response streams back
+
+Example:
+  User: "Calculate 5 * 8, then create a Word doc called 'result.docx' with the answer"
+  Agent: *calls math multiply(5, 8) then word create_document()*
+  Result: "5 * 8 = 40. Created result.docx with the result."
+"""
+
 VERBOSE = False
+
 
 # Define the state of the graph
 class MessageState(BaseModel):
@@ -47,10 +64,39 @@ def build_graph(tools):
     return builder.compile(checkpointer=memory)
 
 
+async def validate_servers(all_servers):
+    """Validate and filter MCP servers, returning only successful ones"""
+    successful_servers = {}
+    for server_name, server_config in all_servers.items():
+        try:
+            test_client = MultiServerMCPClient({server_name: server_config})
+            await test_client.get_tools()
+            successful_servers[server_name] = server_config
+            print(f"✓ Successfully loaded: {server_name}")
+        except Exception as e:
+            print(f"✗ Failed to load {server_name}: {e}")
+    return successful_servers
+
+
 async def setup_langgraph_app():
     """Setup the LangGraph app with MCP tools"""
-    # Define your MCP servers
-    servers = {
+    current_dir = Path(__file__).parent
+
+    # Define all MCP servers (local + external packages)
+    all_servers = {
+        # Local MCP servers (from our local files)
+        "local_math": {
+            "command": "python",
+            "args": [str(current_dir / "local_mcp_servers" / "math_server.py")],
+            "transport": "stdio",
+        },
+        "local_weather": {
+            "command": "python",
+            "args": [str(current_dir / "local_mcp_servers" / "weather_server.py")],
+            "transport": "stdio",
+        },
+        # External MCP package (installed via uv)
+        # This runs: uv tool run --from office-word-mcp-server word_mcp_server (make sure to trust the package)
         "office_word": {
             "command": "uv",
             "args": [
@@ -62,28 +108,30 @@ async def setup_langgraph_app():
             ],
             "transport": "stdio",
         },
-        # Add other servers as needed
     }
 
-    try:
-        client = MultiServerMCPClient(servers)
+    # Validate servers - only load ones that work
+    successful_servers = await validate_servers(all_servers)
+
+    if successful_servers:
+        client = MultiServerMCPClient(successful_servers)
         tools = await client.get_tools()
 
-        print(f"Loaded {len(tools)} tools from MCP servers:")
+        print(f"\nLoaded {len(tools)} tools from {len(successful_servers)} server(s):")
         for tool in tools:
             print(f"  - {tool.name}: {tool.description}")
 
         return build_graph(tools)
+    else:
+        print("No servers loaded! Terminating.")
+        raise RuntimeError("No MCP servers available")
 
-    except Exception as e:
-        print(f"Error connecting to external servers: {e}")
-        # Fallback to basic tools if MCP servers are unavailable
-        return build_graph([])
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.langgraph_app = await setup_langgraph_app()
     yield
+
 
 app = FastAPI(lifespan=lifespan)
 
@@ -114,9 +162,7 @@ async def chat_endpoint(
             {"messages": [HumanMessage(content=user_input)]}, config=config
         ):
             if VERBOSE:
-                print(
-                    "Event:", event
-                )  # this prints each event happening in the graph in CLI
+                print("Event:", event)
             if event.get("event") == "on_chat_model_stream":
                 chunk = event["data"]["chunk"]
                 if hasattr(chunk, "content") and chunk.content:

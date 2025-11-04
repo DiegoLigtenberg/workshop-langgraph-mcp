@@ -3,7 +3,6 @@ from fastapi.responses import StreamingResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 import os
 from contextlib import asynccontextmanager
-from pathlib import Path
 from langchain_core.messages import HumanMessage
 from langgraph.graph import StateGraph, START
 from langgraph.prebuilt import tools_condition, ToolNode
@@ -13,6 +12,25 @@ from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph_mcp.configuration import get_llm
+
+"""
+LangGraph Agent with Remote HTTP MCP + External Package
+
+This example shows:
+- Remote MCP server via Streamable HTTP (Supabase on Railway)
+- External MCP package via uv (Office Word)
+- Mix of HTTP and stdio transports
+- Perfect for production deployments and workshops
+
+Flow: User types in web interface → Agent calls tools → Response streams back
+
+Example:
+  User: "Query the database for top listener, then create a Word doc with the results"
+  Agent: *calls Supabase tools via HTTP, then Word tools via stdio*
+  Result: "Diego listened to 340 songs. Created report.docx with the data."
+"""
+
+VERBOSE = False
 
 
 # Define the state of the graph
@@ -47,25 +65,32 @@ def build_graph(tools):
     return builder.compile(checkpointer=memory)
 
 
+async def validate_servers(all_servers):
+    """Validate and filter MCP servers, returning only successful ones"""
+    successful_servers = {}
+    for server_name, server_config in all_servers.items():
+        try:
+            test_client = MultiServerMCPClient({server_name: server_config})
+            await test_client.get_tools()
+            successful_servers[server_name] = server_config
+            print(f"✓ Successfully loaded: {server_name}")
+        except Exception as e:
+            print(f"✗ Failed to load {server_name}: {e}")
+    return successful_servers
+
+
 async def setup_langgraph_app():
     """Setup the LangGraph app with MCP tools"""
-    current_dir = Path(__file__).parent
 
-    # Define your local and externalMCP servers
-    servers = {
-        # Your local math server
-        "local_math": {
-            "command": "python",
-            "args": [str(current_dir / "local_mcp_servers" / "math_server.py")],
-            "transport": "stdio",
+    # Define MCP servers
+    all_servers = {
+        # Remote HTTP MCP server (Supabase via Railway)
+        # Serverside access to supabase data (no credentials needed)
+        "supabase": {
+            "url": "https://mcp-workshop-server.up.railway.app",
+            "transport": "streamable_http",
         },
-        # Your local weather server
-        "local_weather": {
-            "command": "python",
-            "args": [str(current_dir / "local_mcp_servers" / "weather_server.py")],
-            "transport": "stdio",
-        },
-        # Office Word MCP Server (using uv - no local installation needed)
+        # External package (Office Word via uv)
         "office_word": {
             "command": "uv",
             "args": [
@@ -79,20 +104,21 @@ async def setup_langgraph_app():
         },
     }
 
-    try:
-        client = MultiServerMCPClient(servers)
+    # Validate server connection
+    successful_servers = await validate_servers(all_servers)
+
+    if successful_servers:
+        client = MultiServerMCPClient(successful_servers)
         tools = await client.get_tools()
 
-        print(f"Loaded {len(tools)} tools from MCP servers:")
+        print(f"\nLoaded {len(tools)} tools from {len(successful_servers)} server(s):")
         for tool in tools:
             print(f"  - {tool.name}: {tool.description}")
 
         return build_graph(tools)
-
-    except Exception as e:
-        print(f"Error connecting to external servers: {e}")
-        # Fallback to basic tools if MCP servers are unavailable
-        return build_graph([])
+    else:
+        print("No servers loaded! Terminating.")
+        raise RuntimeError("No MCP servers available")
 
 
 @asynccontextmanager
@@ -127,14 +153,10 @@ async def chat_endpoint(
     async def event_stream():
         final_message = None
         async for event in langgraph_app.astream_events(
-            # What's 15 * 8? Then create a new Word document called 'full_report.docx' \
-            # with the title 'Math Report' and add a heading 'Calculation Results' \
-            # followed by a paragraph explaining that 15 * 8 = 120.\
-            # Finally write a new paragraph explaining the weather in tokyo.
-            {"messages": [HumanMessage(content=user_input)]},
-            config=config,
+            {"messages": [HumanMessage(content=user_input)]}, config=config
         ):
-            print("Event:", event)
+            if VERBOSE:
+                print("Event:", event)
             if event.get("event") == "on_chat_model_stream":
                 chunk = event["data"]["chunk"]
                 if hasattr(chunk, "content") and chunk.content:
