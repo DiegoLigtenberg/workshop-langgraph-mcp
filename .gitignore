@@ -180,3 +180,7 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 *.docx
+
+# Workshop - Railway MCP Server (internal implementation)
+# Workshop participants only need the deployed URL, not the server code
+railway_mcp_server/

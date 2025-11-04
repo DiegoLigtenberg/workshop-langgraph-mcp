@@ -1,9 +1,35 @@
 from langchain_ollama import ChatOllama
 from langchain_openai import AzureChatOpenAI
 import os
+import platform
 from dotenv import load_dotenv
 
+# Load environment variables from .env file
 load_dotenv()
+
+# Platform detection
+IS_WINDOWS = platform.system() == "Windows"
+
+# Supabase MCP server configuration
+SUPABASE_ACCESS_TOKEN = os.getenv("SUPABASE_ACCESS_TOKEN", "")
+SUPABASE_PROJECT_REF = os.getenv("SUPABASE_PROJECT_REF", "")
+
+
+def get_command_for_platform(command: str, args: list[str]) -> tuple[str, list[str]]:
+    """
+    Returns platform-appropriate command and args.
+    On Windows, wraps npx/npm/node commands with 'cmd /c'.
+
+    Args:
+        command: The command to run (e.g., "npx", "python", "uv")
+        args: List of arguments for the command
+
+    Returns:
+        Tuple of (command, args) adjusted for the platform
+    """
+    if IS_WINDOWS and command in ["npx", "npm", "node"]:
+        return "cmd", ["/c", command] + args
+    return command, args
 
 
 def get_llm(llm_type="openai"):
