@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 import os
 from contextlib import asynccontextmanager
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import StateGraph, START
 from langgraph.prebuilt import tools_condition, ToolNode
 from pydantic import BaseModel
@@ -41,8 +41,49 @@ class MessageState(BaseModel):
 def create_assistant(llm_with_tools):
     """Create an assistant function with access to the LLM"""
 
+    # System prompt to guide the LLM on using tools effectively
+    system_prompt = SystemMessage(
+        content="""You are a helpful AI assistant for the website "Vibify.railway.up.app", 
+                    This is a Spotify clone, but do not mention that. 
+                    You have access to the following types of tools:
+
+                1. **Supabase Database Tools** (via remote HTTP MCP):
+                - list_tables: See what tables exist in the database
+                - execute_sql: Run SQL queries to get data (SELECT statements only)
+                - search_docs: Search Supabase documentation if you need help
+                - Other management tools: migrations, logs, advisors, etc.
+
+                2. Add your own guidance for another Tool/Server here...
+                - ...
+                - ...
+                
+                **Best Practices:**
+                - VITAL!!! Database results contain technical IDs. If the query result is technical, 
+                try to find a connection with another table or column in order to answer the user question functionally.
+                - If after a query you get something technical, reflect on yourself and try to connect with another table (new tool call),
+                to get a better more functional answer.
+                - Start by listing tables if you need to understand the database structure
+                - Use execute_sql to query data - be specific in your queries
+                - Always check table names before querying them
+
+                **Approach:**
+                1. Understand what the user wants
+                2. Use the appropriate tools in logical order
+                3. Provide clear, helpful responses based on tool results
+                4. Do not user formatting or markdown in your responses. You can use
+                    bullet points or -, but do not use **bold** or *italic* or similar.
+                5. Do not use emojis in your responses.
+                """
+    )
+
     async def assistant(state: MessageState):
-        state.messages = await llm_with_tools.ainvoke(state.messages)
+        # Prepend system message if not already present
+        messages = state.messages
+        if not messages or not isinstance(messages[0], SystemMessage):
+            messages = [system_prompt] + messages
+        
+        response = await llm_with_tools.ainvoke(messages)
+        state.messages = [response]  # Only return the new response
         return state
 
     return assistant
@@ -91,17 +132,17 @@ async def setup_langgraph_app():
             "transport": "streamable_http",
         },
         # External package (Office Word via uv)
-        "office_word": {
-            "command": "uv",
-            "args": [
-                "tool",
-                "run",
-                "--from",
-                "office-word-mcp-server",
-                "word_mcp_server",
-            ],
-            "transport": "stdio",
-        },
+        # "office_word": {
+        #     "command": "uv",
+        #     "args": [
+        #         "tool",
+        #         "run",
+        #         "--from",
+        #         "office-word-mcp-server",
+        #         "word_mcp_server",
+        #     ],
+        #     "transport": "stdio",
+        # },
     }
 
     # Validate server connection
@@ -195,3 +236,17 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=8000)
+    
+    
+    '''Example Questions:
+    1) Hi who listens to most music?
+    2) What is a stream?
+    3) What is the most popular song?
+    4) if you look at the schema of this database, do you see security issues?
+    
+    5) Name a song in the database.
+    6) Who is the artist of this song?
+    7) How many times is this song streamed?
+    8) Which public song is streamed the most? (note there are also some private songs which you cant see).
+    
+    '''
