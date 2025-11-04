@@ -18,9 +18,9 @@
   --gradient-brand: linear-gradient(90deg, var(--color-brand-orange) 0%, var(--color-brand-red) 40%, var(--color-brand-purple) 85%, var(--color-brand-darkpurple) 100%);
   --gradient-glass: linear-gradient(135deg, var(--color-bright-40) 0%, var(--color-bright-100) 50%, var(--color-bright-40) 100%);
 
-  --font-chat: 16px/1.5 'Josefin Sans', sans-serif;
-  --font-system: 14px 'Noto Sans', sans-serif;
-  --font-interactive: 16px 'Noto Sans', sans-serif;
+  --font-chat: 16px/1.5 'Segoe UI', Arial, sans-serif;
+  --font-system: 14px 'Segoe UI', Arial, sans-serif;
+  --font-interactive: 16px 'Segoe UI', Arial, sans-serif;
 
   /* Theme variables - Light mode defaults */
   --bg-primary: var(--color-bright-100);
@@ -174,6 +174,24 @@ body {
   align-self: flex-start;
   color: var(--text-primary);
   font: var(--font-chat);
+}
+
+.message a {
+  color: #0066cc;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.message a:hover {
+  color: #0052a3;
+}
+
+body.dark .message a {
+  color: #3399ff;
+}
+
+body.dark .message a:hover {
+  color: #66b3ff;
 }
 
 .message.tool {

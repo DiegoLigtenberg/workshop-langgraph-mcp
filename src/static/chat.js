@@ -31,10 +31,23 @@ darkModeBtn.onclick = function() {
     darkModeBtn.textContent = isDark ? '☀️ Light Mode' : '🌙 Dark Mode';
 };
 
+function linkifyText(text) {
+    // Convert URLs to clickable links
+    // Handle both full URLs (http/https) and bare domains
+    let processed = text.replace(/(?:https?:\/\/)?(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s]*)?/g, function(match) {
+        // If it already starts with http/https, use as-is; otherwise add https://
+        const url = match.startsWith('http') ? match : 'https://' + match;
+        return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + match + '</a>';
+    });
+    // Convert newlines to <br> tags for proper line breaks
+    processed = processed.replace(/\n/g, '<br>');
+    return processed;
+}
+
 function appendMessage(text, sender) {
     const msgDiv = document.createElement('div');
     msgDiv.className = 'message ' + sender;
-    msgDiv.innerText = text;
+    msgDiv.innerHTML = linkifyText(text);
     chatWindow.appendChild(msgDiv);
     chatWindow.scrollTop = chatWindow.scrollHeight;
 }
@@ -64,20 +77,32 @@ function sendMessage(text, showUserBubble = true) {
                 body: formData.toString()
             });
             if (!response.ok) {
-                aiMsgDiv.innerText = '[Error: ' + response.status + ']';
+                aiMsgDiv.innerHTML = linkifyText('[Error: ' + response.status + ']');
             } else {
                 // Streaming support (if backend supports it)
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let aiMsg = '';
+                let toolsUsed = false;
                 while (true) {
                     const { value, done } = await reader.read();
                     if (done) break;
                     const chunk = decoder.decode(value);
                     if (chunk.startsWith('\n__FINAL__:')) {
-                        aiMsgDiv.innerText = chunk.replace('\n__FINAL__:', '');
+                        aiMsgDiv.innerHTML = linkifyText(chunk.replace('\n__FINAL__:', ''));
+                        // If tools were used, re-add aiMsgDiv at the end (after tool messages)
+                        if (toolsUsed) {
+                            chatWindow.appendChild(aiMsgDiv);
+                            chatWindow.scrollTop = chatWindow.scrollHeight;
+                        }
                         break;
                     } else if (chunk.includes('__TOOL_CALL__:')) {
+                        // Tool detected - hide any streamed text and remove aiMsgDiv temporarily
+                        if (!toolsUsed) {
+                            aiMsgDiv.remove(); // Remove from DOM (we'll re-add at the end)
+                            aiMsg = '';
+                            toolsUsed = true;
+                        }
                         // Tool call message
                         const msg = chunk.split('__TOOL_CALL__:')[1].trim();
                         const toolDiv = document.createElement('div');
@@ -91,19 +116,49 @@ function sendMessage(text, showUserBubble = true) {
                         const msg = chunk.split('__TOOL_CALL_RESULT__:')[1].trim();
                         const toolDiv = document.createElement('div');
                         toolDiv.className = 'message tool';
-                        toolDiv.innerHTML = '<b>Tool Result:</b> <span>' + msg + '</span>';
+                        
+                        // Truncate long results
+                        if (msg.length > 500) {
+                            const truncated = msg.substring(0, 500);
+                            const resultSpan = document.createElement('span');
+                            resultSpan.innerHTML = truncated + '<span style="color:#888;cursor:pointer;text-decoration:underline;margin-left:5px;" class="expand-btn">...expand</span>';
+                            toolDiv.innerHTML = '<b>Tool Result:</b> ';
+                            toolDiv.appendChild(resultSpan);
+                            
+                            // Toggle expand/collapse on click
+                            let expanded = false;
+                            resultSpan.querySelector('.expand-btn').onclick = function() {
+                                if (!expanded) {
+                                    resultSpan.innerHTML = msg + '<span style="color:#888;cursor:pointer;text-decoration:underline;margin-left:5px;" class="expand-btn">collapse</span>';
+                                    expanded = true;
+                                    // Re-attach click handler
+                                    resultSpan.querySelector('.expand-btn').onclick = arguments.callee;
+                                } else {
+                                    resultSpan.innerHTML = truncated + '<span style="color:#888;cursor:pointer;text-decoration:underline;margin-left:5px;" class="expand-btn">...expand</span>';
+                                    expanded = false;
+                                    // Re-attach click handler
+                                    resultSpan.querySelector('.expand-btn').onclick = arguments.callee;
+                                }
+                            };
+                        } else {
+                            toolDiv.innerHTML = '<b>Tool Result:</b> <span>' + msg + '</span>';
+                        }
+                        
                         chatWindow.appendChild(toolDiv);
                         chatWindow.scrollTop = chatWindow.scrollHeight;
                         continue;
                     } else {
-                        aiMsg += chunk;
-                        aiMsgDiv.innerText = aiMsg;
+                        // Only show streaming if no tools are used
+                        if (!toolsUsed) {
+                            aiMsg += chunk;
+                            aiMsgDiv.innerHTML = linkifyText(aiMsg);
+                        }
                     }
                     chatWindow.scrollTop = chatWindow.scrollHeight;
                 }
             }
         } catch (err) {
-            aiMsgDiv.innerText = '[Network error]';
+            aiMsgDiv.innerHTML = linkifyText('[Network error]');
         }
         userInput.disabled = false;
         sendBtn.disabled = false;
