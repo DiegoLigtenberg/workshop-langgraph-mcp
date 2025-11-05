@@ -57,6 +57,11 @@ body.dark {
   --border-secondary: var(--color-bright-20);
 }
 
+body.dark .main {
+  background: rgba(128, 128, 128, 0.25);
+  backdrop-filter: blur(10px);
+}
+
 body {
   font-family: 'Segoe UI', Arial, sans-serif;
   background: var(--bg-primary);
@@ -141,17 +146,20 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-bottom: 24px;
+  padding: 24px;
+  position: relative;
   background-color: var(--bg-tertiary);
+  overflow-y: auto;
 }
 
 .chat {
   flex: 1;
+  width: 100%;
+  max-width: 1200px;
   display: flex;
   flex-direction: column;
   gap: 32px;
-  padding: 0 24px;
-  overflow-y: auto;
+  padding: 24px;
 }
 
 .message {

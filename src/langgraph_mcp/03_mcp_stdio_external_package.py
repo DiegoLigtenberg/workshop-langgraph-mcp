@@ -1,10 +1,9 @@
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import StreamingResponse, RedirectResponse
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
-from langchain_core.messages import HumanMessage
 from langgraph.graph import StateGraph, START
 from langgraph.prebuilt import tools_condition, ToolNode
 from pydantic import BaseModel
@@ -13,6 +12,7 @@ from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph_mcp.configuration import get_llm
+from langgraph_mcp.streaming_utils import chat_endpoint_handler
 
 """
 LangGraph Agent with External MCP Packages (stdio)
@@ -72,9 +72,9 @@ async def validate_servers(all_servers):
             test_client = MultiServerMCPClient({server_name: server_config})
             await test_client.get_tools()
             successful_servers[server_name] = server_config
-            print(f"✓ Successfully loaded: {server_name}")
+            print(f"Successfully loaded: {server_name}")
         except Exception as e:
-            print(f"✗ Failed to load {server_name}: {e}")
+            print(f"Failed to load {server_name}: {e}")
     return successful_servers
 
 
@@ -150,51 +150,7 @@ async def chat_endpoint(
     request: Request, user_input: str = Form(...), thread_id: str = Form(None)
 ):
     print("Received user_input:", user_input)
-    if not thread_id:
-        thread_id = "demo-user-1"
-
-    config = {"configurable": {"thread_id": thread_id}}
-    langgraph_app = request.app.state.langgraph_app
-
-    async def event_stream():
-        final_message = None
-        async for event in langgraph_app.astream_events(
-            {"messages": [HumanMessage(content=user_input)]}, config=config
-        ):
-            if VERBOSE:
-                print("Event:", event)
-            if event.get("event") == "on_chat_model_stream":
-                chunk = event["data"]["chunk"]
-                if hasattr(chunk, "content") and chunk.content:
-                    yield chunk.content + " "
-            elif event.get("event") == "on_tool_start":
-                tool_name = event.get("name", "tool")
-                tool_args = event.get("data", {}).get("input", {})
-                yield f"\n__TOOL_CALL__:Calling tool '{tool_name}' with args {tool_args}\n"
-            elif event.get("event") == "on_tool_end":
-                tool_name = event.get("name", "tool")
-                tool_output = event.get("data", {}).get("output", "")
-                yield f"\n__TOOL_CALL_RESULT__:Tool '{tool_name}' returned: {tool_output}\n"
-            elif event.get("event") in ("on_chain_stream", "on_chain_end"):
-                messages = []
-                if (
-                    "data" in event
-                    and "chunk" in event["data"]
-                    and "messages" in event["data"]["chunk"]
-                ):
-                    messages = event["data"]["chunk"]["messages"]
-                elif (
-                    "data" in event
-                    and "output" in event["data"]
-                    and "messages" in event["data"]["output"]
-                ):
-                    messages = event["data"]["output"]["messages"]
-                if messages:
-                    final_message = messages[-1].content
-        if final_message:
-            yield f"\n__FINAL__:{final_message}"
-
-    return StreamingResponse(event_stream(), media_type="text/plain")
+    return await chat_endpoint_handler(request, user_input, thread_id, VERBOSE)
 
 
 if __name__ == "__main__":
