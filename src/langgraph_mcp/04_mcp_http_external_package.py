@@ -1,9 +1,9 @@
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import StreamingResponse, RedirectResponse
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 import os
 from contextlib import asynccontextmanager
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import SystemMessage
 from langgraph.graph import StateGraph, START
 from langgraph.prebuilt import tools_condition, ToolNode
 from pydantic import BaseModel
@@ -12,22 +12,19 @@ from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph_mcp.configuration import get_llm
+from langgraph_mcp.streaming_utils import chat_endpoint_handler
 
 """
 LangGraph Agent with Remote HTTP MCP + External Package
 
 This example shows:
 - Remote MCP server via Streamable HTTP (Supabase on Railway)
-- External MCP package via uv (Office Word)
-- Mix of HTTP and stdio transports
-- Perfect for production deployments and workshops
-
-Flow: User types in web interface → Agent calls tools → Response streams back
+- Local MCP Server via Streamable HTTP (Code Explorer)
 
 Example:
   User: "Query the database for top listener, then create a Word doc with the results"
-  Agent: *calls Supabase tools via HTTP, then Word tools via stdio*
-  Result: "Diego listened to 340 songs. Created report.docx with the data."
+  Agent: *calls Supabase tools via HTTP, or Code Explorer tools via HTTP*
+  Result: "Diego listened to 340 songs."
 """
 
 VERBOSE = False
@@ -53,10 +50,8 @@ def create_assistant(llm_with_tools):
                 - execute_sql: Run SQL queries to get data (SELECT statements only)
                 - search_docs: Search Supabase documentation if you need help
                 - Other management tools: migrations, logs, advisors, etc.
-
-                2. Add your own guidance for another Tool/Server here...
-                - ...
-                - ...
+                
+       
                 
                 **Best Practices:**
                 - VITAL!!! Database results contain technical IDs. If the query result is technical, 
@@ -92,7 +87,8 @@ def create_assistant(llm_with_tools):
                   2. Song Title by Artist
                   Link: https://vibify.up.railway.app/share/song/...
                   
-                - Do NOT use markdown formatting (**bold**, *italic*, etc.) for any lists or formatted text.
+                - Do NOT use markdown formatting (**bold**, *italic*, [links](url), etc.)
+                - Write URLs as plain text (e.g., "Link: https://example.com" not "[text](url)")
                 - Do NOT use emojis
                 """
     )
@@ -102,7 +98,7 @@ def create_assistant(llm_with_tools):
         messages = state.messages
         if not messages or not isinstance(messages[0], SystemMessage):
             messages = [system_prompt] + messages
-        
+
         response = await llm_with_tools.ainvoke(messages)
         state.messages = [response]  # Only return the new response
         return state
@@ -129,15 +125,21 @@ def build_graph(tools):
 
 async def validate_servers(all_servers):
     """Validate and filter MCP servers, returning only successful ones"""
+    import traceback
+
     successful_servers = {}
     for server_name, server_config in all_servers.items():
         try:
+            print(
+                f"Testing connection to {server_name} at {server_config.get('url', 'stdio')}..."
+            )
             test_client = MultiServerMCPClient({server_name: server_config})
             await test_client.get_tools()
             successful_servers[server_name] = server_config
-            print(f"✓ Successfully loaded: {server_name}")
+            print(f"Successfully loaded: {server_name}")
         except Exception as e:
-            print(f"✗ Failed to load {server_name}: {e}")
+            print(f"Failed to load {server_name}: {e}")
+            print(f"   Full traceback:\n{traceback.format_exc()}")
     return successful_servers
 
 
@@ -147,22 +149,16 @@ async def setup_langgraph_app():
     # Define MCP servers
     all_servers = {
         # Remote HTTP MCP server (Supabase via Railway)
-        # Serverside access to supabase data (no credentials needed)
+        # Serverside access to supabase data (database  credentials are handled by the server)
         "supabase": {
             "url": "https://mcp-workshop-server.up.railway.app",
             "transport": "streamable_http",
         },
-        # External package (Office Word via uv)
-        # "office_word": {
-        #     "command": "uv",
-        #     "args": [
-        #         "tool",
-        #         "run",
-        #         "--from",
-        #         "office-word-mcp-server",
-        #         "word_mcp_server",
-        #     ],
-        #     "transport": "stdio",
+        # uncomment to use code explorer mcp server
+        # Code Explorer MCP server (via Streamable HTTP)
+        # "code-explorer": {
+        #     "url": "http://127.0.0.1:8001",  # FastMCP streamable-http exposes at root, not /mcp
+        #     "transport": "streamable_http",
         # },
     }
 
@@ -206,60 +202,15 @@ async def chat_endpoint(
     request: Request, user_input: str = Form(...), thread_id: str = Form(None)
 ):
     print("Received user_input:", user_input)
-    if not thread_id:
-        thread_id = "demo-user-1"
-
-    config = {"configurable": {"thread_id": thread_id}}
-    langgraph_app = request.app.state.langgraph_app
-
-    async def event_stream():
-        final_message = None
-        async for event in langgraph_app.astream_events(
-            {"messages": [HumanMessage(content=user_input)]}, config=config
-        ):
-            if VERBOSE:
-                print("Event:", event)
-            if event.get("event") == "on_chat_model_stream":
-                chunk = event["data"]["chunk"]
-                if hasattr(chunk, "content") and chunk.content:
-                    yield chunk.content + " "
-            elif event.get("event") == "on_tool_start":
-                tool_name = event.get("name", "tool")
-                tool_args = event.get("data", {}).get("input", {})
-                yield f"\n__TOOL_CALL__:Calling tool '{tool_name}' with args {tool_args}\n"
-            elif event.get("event") == "on_tool_end":
-                tool_name = event.get("name", "tool")
-                tool_output = event.get("data", {}).get("output", "")
-                yield f"\n__TOOL_CALL_RESULT__:Tool '{tool_name}' returned: {tool_output}\n"
-            elif event.get("event") in ("on_chain_stream", "on_chain_end"):
-                messages = []
-                if (
-                    "data" in event
-                    and "chunk" in event["data"]
-                    and "messages" in event["data"]["chunk"]
-                ):
-                    messages = event["data"]["chunk"]["messages"]
-                elif (
-                    "data" in event
-                    and "output" in event["data"]
-                    and "messages" in event["data"]["output"]
-                ):
-                    messages = event["data"]["output"]["messages"]
-                if messages:
-                    final_message = messages[-1].content
-        if final_message:
-            yield f"\n__FINAL__:{final_message}"
-
-    return StreamingResponse(event_stream(), media_type="text/plain")
+    return await chat_endpoint_handler(request, user_input, thread_id, VERBOSE)
 
 
 if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=8000)
-    
-    
-    '''Example Questions:
+
+    """Example Questions:
     1) Hi who listens to most music?
     2) What is a stream?
     3) What is the most popular song?
@@ -270,4 +221,4 @@ if __name__ == "__main__":
     7) How many times is this song streamed?
     8) Which public song is streamed the most? (note there are also some private songs which you cant see).
     
-    '''
+    """
