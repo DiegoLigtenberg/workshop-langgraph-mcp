@@ -10,6 +10,7 @@ if (!thread_id) {
 }
 
 const chatWindow = document.getElementById('chat-window');
+const mainContainer = document.getElementById('main');
 const userInput = document.getElementById('user-input');
 const sendBtn = document.getElementById('send-btn');
 const newChatBtn = document.getElementById('new-chat-btn');
@@ -31,14 +32,52 @@ darkModeBtn.onclick = function() {
     darkModeBtn.textContent = isDark ? '☀️ Light Mode' : '🌙 Dark Mode';
 };
 
+// Handle expand/collapse clicks for tool results
+chatWindow.addEventListener('click', function(e) {
+    if (e.target.classList.contains('expand-btn')) {
+        e.stopPropagation();
+        const btn = e.target;
+        const full = btn.getAttribute('data-full');
+        const truncated = btn.getAttribute('data-truncated');
+        const contentSpan = btn.parentElement; // The span that contains the content and button
+        
+        // Escape HTML properly
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        const isExpanded = btn.textContent.trim() === 'collapse';
+        
+        if (isExpanded) {
+            // Collapse: show truncated content (500 chars)
+            contentSpan.innerHTML = escapeHtml(truncated) + '<span class="expand-btn" data-full="' + full.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '" data-truncated="' + truncated.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '" style="color:#888;cursor:pointer;text-decoration:underline;margin-left:5px;">...expand</span>';
+        } else {
+            // Expand: show full content
+            contentSpan.innerHTML = escapeHtml(full) + '<span class="expand-btn" data-full="' + full.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '" data-truncated="' + truncated.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '" style="color:#888;cursor:pointer;text-decoration:underline;margin-left:5px;">collapse</span>';
+        }
+    }
+});
+
 function linkifyText(text) {
-    // Convert URLs to clickable links
-    // Handle both full URLs (http/https) and bare domains
-    let processed = text.replace(/(?:https?:\/\/)?(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s]*)?/g, function(match) {
-        // If it already starts with http/https, use as-is; otherwise add https://
-        const url = match.startsWith('http') ? match : 'https://' + match;
-        return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + match + '</a>';
+    // First, convert markdown-style links [text](url) to HTML links
+    let processed = text.replace(/\[([^\]]+)\]\(((?:https?:\/\/)?[^\)]+)\)/g, function(match, linkText, url) {
+        const fullUrl = url.startsWith('http') ? url : 'https://' + url;
+        return '<a href="' + fullUrl + '" target="_blank" rel="noopener noreferrer">' + linkText + '</a>';
     });
+    
+    // Then, convert bare URLs that are NOT already inside HTML tags
+    // Negative lookbehind to avoid matching URLs already in href=""
+    processed = processed.replace(/(?<!href="|">)((?:https?:\/\/)?(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s<]*)?)/g, function(match) {
+        // Skip if this looks like it's inside an HTML tag
+        if (match.startsWith('http') || match.includes('.')) {
+            const url = match.startsWith('http') ? match : 'https://' + match;
+            return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + match + '</a>';
+        }
+        return match;
+    });
+    
     // Convert newlines to <br> tags for proper line breaks
     processed = processed.replace(/\n/g, '<br>');
     return processed;
@@ -49,7 +88,7 @@ function appendMessage(text, sender) {
     msgDiv.className = 'message ' + sender;
     msgDiv.innerHTML = linkifyText(text);
     chatWindow.appendChild(msgDiv);
-    chatWindow.scrollTop = chatWindow.scrollHeight;
+    mainContainer.scrollTop = mainContainer.scrollHeight;
 }
 
 function sendMessage(text, showUserBubble = true) {
@@ -60,11 +99,11 @@ function sendMessage(text, showUserBubble = true) {
     sendBtn.disabled = true;
 
     // Placeholder for AI message while waiting
-    const aiMsgDiv = document.createElement('div');
+    let aiMsgDiv = document.createElement('div');
     aiMsgDiv.className = 'message ai';
     aiMsgDiv.innerText = '...';
     chatWindow.appendChild(aiMsgDiv);
-    chatWindow.scrollTop = chatWindow.scrollHeight;
+    mainContainer.scrollTop = mainContainer.scrollHeight;
 
     (async () => {
         try {
@@ -84,85 +123,135 @@ function sendMessage(text, showUserBubble = true) {
                 const decoder = new TextDecoder();
                 let aiMsg = '';
                 let toolsUsed = false;
-                while (true) {
-                    const { value, done } = await reader.read();
-                    if (done) break;
-                    const chunk = decoder.decode(value);
-                    if (chunk.startsWith('\n__FINAL__:')) {
-                        aiMsgDiv.innerHTML = linkifyText(chunk.replace('\n__FINAL__:', ''));
-                        // If tools were used, re-add aiMsgDiv at the end (after tool messages)
-                        if (toolsUsed) {
-                            chatWindow.appendChild(aiMsgDiv);
-                            chatWindow.scrollTop = chatWindow.scrollHeight;
+                let buffer = ''; // Buffer for incomplete chunks
+                let finalMessageProcessed = false; // Track if final message was already processed
+                
+                function extractMarker(marker) {
+                    const pattern = new RegExp(marker + ':(.+?)(?=\\n__TOOL_CALL__:|\\n__TOOL_CALL_RESULT__:|\\n__FINAL__:|$)', 's');
+                    const match = buffer.match(pattern) || buffer.match(new RegExp(marker + ':(.+)$', 's'));
+                    if (match) {
+                        const content = match[1].trim();
+                        buffer = buffer.replace(pattern, '');
+                        if (buffer.includes(marker + ':')) {
+                            buffer = buffer.replace(new RegExp(marker + ':.*$', 's'), '');
                         }
-                        break;
-                    } else if (chunk.includes('__TOOL_CALL__:')) {
-                        // Tool detected - hide any streamed text and remove aiMsgDiv temporarily
-                        if (!toolsUsed) {
-                            aiMsgDiv.remove(); // Remove from DOM (we'll re-add at the end)
-                            aiMsg = '';
-                            toolsUsed = true;
-                        }
-                        // Tool call message
-                        const msg = chunk.split('__TOOL_CALL__:')[1].trim();
-                        const toolDiv = document.createElement('div');
-                        toolDiv.className = 'message tool';
-                        toolDiv.innerHTML = '<b>Tool Call:</b> <span>' + msg + '</span>';
-                        chatWindow.appendChild(toolDiv);
-                        chatWindow.scrollTop = chatWindow.scrollHeight;
-                        continue;
-                    } else if (chunk.includes('__TOOL_CALL_RESULT__:')) {
-                        // Tool result message
-                        const msg = chunk.split('__TOOL_CALL_RESULT__:')[1].trim();
-                        const toolDiv = document.createElement('div');
-                        toolDiv.className = 'message tool';
-                        
-                        // Truncate long results
-                        if (msg.length > 500) {
-                            const truncated = msg.substring(0, 500);
-                            const resultSpan = document.createElement('span');
-                            resultSpan.innerHTML = truncated + '<span style="color:#888;cursor:pointer;text-decoration:underline;margin-left:5px;" class="expand-btn">...expand</span>';
-                            toolDiv.innerHTML = '<b>Tool Result:</b> ';
-                            toolDiv.appendChild(resultSpan);
-                            
-                            // Toggle expand/collapse on click
-                            let expanded = false;
-                            resultSpan.querySelector('.expand-btn').onclick = function() {
-                                if (!expanded) {
-                                    resultSpan.innerHTML = msg + '<span style="color:#888;cursor:pointer;text-decoration:underline;margin-left:5px;" class="expand-btn">collapse</span>';
-                                    expanded = true;
-                                    // Re-attach click handler
-                                    resultSpan.querySelector('.expand-btn').onclick = arguments.callee;
-                                } else {
-                                    resultSpan.innerHTML = truncated + '<span style="color:#888;cursor:pointer;text-decoration:underline;margin-left:5px;" class="expand-btn">...expand</span>';
-                                    expanded = false;
-                                    // Re-attach click handler
-                                    resultSpan.querySelector('.expand-btn').onclick = arguments.callee;
-                                }
-                            };
-                        } else {
-                            toolDiv.innerHTML = '<b>Tool Result:</b> <span>' + msg + '</span>';
-                        }
-                        
-                        chatWindow.appendChild(toolDiv);
-                        chatWindow.scrollTop = chatWindow.scrollHeight;
-                        continue;
-                    } else {
-                        // Only show streaming if no tools are used
-                        if (!toolsUsed) {
-                            aiMsg += chunk;
-                            aiMsgDiv.innerHTML = linkifyText(aiMsg);
+                        return content;
+                    }
+                    return null;
+                }
+                
+                function processBuffer() {
+                    // Display text before first marker
+                    const markers = ['__TOOL_CALL__', '__TOOL_CALL_RESULT__', '__FINAL__'];
+                    const firstMarker = markers.find(m => buffer.includes(m + ':'));
+                    
+                    if (!firstMarker && !toolsUsed && buffer.trim()) {
+                        aiMsg += buffer;
+                        aiMsgDiv.innerText = aiMsg;
+                        buffer = '';
+                        mainContainer.scrollTop = mainContainer.scrollHeight;
+                        return;
+                    }
+                    
+                    if (firstMarker) {
+                        const firstIndex = buffer.indexOf(firstMarker + ':');
+                        if (firstIndex > 0 && !toolsUsed) {
+                            aiMsg += buffer.substring(0, firstIndex);
+                            aiMsgDiv.innerText = aiMsg;
+                            buffer = buffer.substring(firstIndex);
                         }
                     }
-                    chatWindow.scrollTop = chatWindow.scrollHeight;
+                    
+                    // Process markers
+                    while (true) {
+                        let processed = false;
+                        
+                        if (buffer.includes('__TOOL_CALL__:')) {
+                            const msg = extractMarker('__TOOL_CALL__');
+                            if (msg) {
+                                if (!toolsUsed) {
+                                    aiMsgDiv.remove();
+                                    aiMsg = '';
+                                    toolsUsed = true;
+                                }
+                                const toolDiv = document.createElement('div');
+                                toolDiv.className = 'message tool';
+                                toolDiv.innerHTML = '<b>Tool Call:</b> <span>' + msg + '</span>';
+                                chatWindow.appendChild(toolDiv);
+                                processed = true;
+                            }
+                        }
+                        
+                        if (buffer.includes('__TOOL_CALL_RESULT__:')) {
+                            const msg = extractMarker('__TOOL_CALL_RESULT__');
+                            if (msg) {
+                                const toolDiv = document.createElement('div');
+                                toolDiv.className = 'message tool';
+                                if (msg.length > 500) {
+                                    const truncated = msg.substring(0, 500);
+                                    const contentSpan = document.createElement('span');
+                                    contentSpan.innerHTML = truncated + '<span class="expand-btn" data-full="' + msg.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '" data-truncated="' + truncated.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '" style="color:#888;cursor:pointer;text-decoration:underline;margin-left:5px;">...expand</span>';
+                                    toolDiv.innerHTML = '<b>Tool Result:</b> ';
+                                    toolDiv.appendChild(contentSpan);
+                                } else {
+                                    toolDiv.innerHTML = '<b>Tool Result:</b> <span>' + msg.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>';
+                                }
+                                chatWindow.appendChild(toolDiv);
+                                processed = true;
+                            }
+                        }
+                        
+                        if (buffer.includes('__FINAL__:') && !finalMessageProcessed) {
+                            const finalMessage = extractMarker('__FINAL__');
+                            if (finalMessage) {
+                                if (toolsUsed) {
+                                    if (aiMsgDiv.parentNode) aiMsgDiv.remove();
+                                    aiMsgDiv = document.createElement('div');
+                                    aiMsgDiv.className = 'message ai';
+                                    chatWindow.appendChild(aiMsgDiv);
+                                }
+                                aiMsgDiv.innerHTML = linkifyText(finalMessage);
+                                finalMessageProcessed = true;
+                                processed = true;
+                            }
+                        }
+                        
+                        if (!processed) break;
+                        mainContainer.scrollTop = mainContainer.scrollHeight;
+                    }
+                }
+                
+                while (true) {
+                    const { value, done } = await reader.read();
+                    
+                    if (value) {
+                        buffer += decoder.decode(value, { stream: true });
+                        processBuffer();
+                    }
+                    
+                    if (done) {
+                        // Process any remaining buffer
+                        let lastLength;
+                        do {
+                            lastLength = buffer.length;
+                            processBuffer();
+                        } while (buffer.length !== lastLength && buffer.length > 0);
+                        
+                        userInput.disabled = false;
+                        sendBtn.disabled = false;
+                        userInput.focus();
+                        break;
+                    }
                 }
             }
         } catch (err) {
-            aiMsgDiv.innerHTML = linkifyText('[Network error]');
+            if (aiMsgDiv) {
+                aiMsgDiv.innerHTML = linkifyText('[Network error]');
+            }
+            userInput.disabled = false;
+            sendBtn.disabled = false;
+            userInput.focus();
         }
-        userInput.disabled = false;
-        sendBtn.disabled = false;
-        userInput.focus();
     })();
 }
 

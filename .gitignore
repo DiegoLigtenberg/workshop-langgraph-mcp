@@ -181,6 +181,10 @@ cython_debug/
 .cursorindexingignore
 *.docx
 
-# Workshop - Railway MCP Server (internal implementation)
-# Workshop participants only need the deployed URL, not the server code
-railway_mcp_server/
+
+# Streamable HTTP MCP Server
+# Only track server.py, server-code-explorer.py, and fastmcp-flow.txt, ignore everything else
+src/langgraph_mcp/streamable_http_mcp_server/*
+!src/langgraph_mcp/streamable_http_mcp_server/server.py
+!src/langgraph_mcp/streamable_http_mcp_server/server-code-explorer.py
+!src/langgraph_mcp/streamable_http_mcp_server/fastmcp-flow.txt
