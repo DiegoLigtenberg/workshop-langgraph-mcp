@@ -211,10 +211,9 @@ async def chat_endpoint(
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
 
     """Example Questions:
-    # 1 tool call (except for the initial list tables tool call)
     1) Hi who listens to most music?
     2) What song is streamed the most?
     3) if you look at the schema of this database, do you see security issues?
