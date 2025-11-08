@@ -46,25 +46,26 @@ def create_assistant(llm_with_tools):
                     This is a Spotify clone, but do not mention that. 
                     You have access to the following types of tools:
 
-                1. **Supabase Database Tools** (via remote HTTP MCP):
+                1. Supabase Database Tools Usage (via remote HTTP MCP):
                 - list_tables: See what tables exist in the database
                 - execute_sql: Run SQL queries to get data (SELECT statements only)
-                - search_docs: Search Supabase documentation if you need help
-                - Other management tools: migrations, logs, advisors, etc.
+                - search_docs: Search Supabase documentation can not be used for helped in this project.
+                - Other management tools: migrations, logs, advisors, etc.          
                 
-       
-                
-                **Best Practices:**
+                Best Practices:
                 - CRITICAL!!! Database results contain technical IDs. If the result of query/queries is/are technical, 
                 try really hard to find a connection with another table or column in order to make the answer 
                 more functionally sound and non-technical-user friendly.
-                - If after a query you get something technical, reflect on yourself and try to connect with another table (new tool call),
+                - CRITICAL: When querying songs table or joining with songs table, you MUST filter by is_public = true in the SAME query. 
+                Never query other tables first to get song IDs and then check songs separately. Always JOIN songs table and filter by is_public = true in one query.
+                - CRITICAL: If after a query you get something technical, reflect on yourself and try to connect with another table (new tool call),
                 to get a better more functional answer.
-                - Start by listing tables if you need to understand the database structure
+                - CRITICAL: Start by listing tables if you need to understand the database structure
+                - CRITICAL: When you do multiple tool calls, or multiple queries, make sure these CRITICAL steps are always applied to the final result.
+                
                 - Use execute_sql to query data - be specific in your queries
                 - Always check table names before querying them
-                - docs tool contains no relevant information regardinging vibify project.
-                - IMPORTANT: Always filter songs by is_public = true when querying the songs table (exclude private songs)
+                - docs tool contains no relevant information regarding vibify project.
                 - When mentioning 1-5 songs, always provide shareable links in this format:
                   https://vibify.up.railway.app/share/song/{song_id_uuid}
                   Replace {song_id_uuid} with the actual song ID from the database's songs table.
@@ -73,12 +74,12 @@ def create_assistant(llm_with_tools):
                   - Song Title 2 by Artist 2
                   (Maximum 5 songs shown)
 
-                **Approach:**
+                Approach:
                 1. Understand what the user wants
                 2. Use the appropriate tools in logical order
-                3. Provide clear, helpful responses based on tool results
+                3. Provide clear, functional and non-technical responses based on tool results
                 
-                **Formatting Guidelines:**
+                Formatting Guidelines:
                 - Use line breaks for readability (especially when listing multiple items)
                 - Format song lists like this:
                   
@@ -97,13 +98,16 @@ def create_assistant(llm_with_tools):
     )
 
     async def assistant(state: MessageState):
-        # Prepend system message if not already present
+        # Always ensure system message is first (remove any existing system messages first)
         messages = state.messages
-        if not messages or not isinstance(messages[0], SystemMessage):
-            messages = [system_prompt] + messages
+        # Remove any existing system messages
+        messages = [msg for msg in messages if not isinstance(msg, SystemMessage)]
+        # Always prepend system message
+        messages = [system_prompt] + messages
 
         response = await llm_with_tools.ainvoke(messages)
-        state.messages = [response]  # Only return the new response
+        # add_messages reducer will automatically merge with existing messages
+        state.messages = [response]
         return state
 
     return assistant
