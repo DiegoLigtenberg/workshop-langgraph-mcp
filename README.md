@@ -83,10 +83,10 @@ poetry add package-name
 
 This repository contains several examples demonstrating MCP integration:
 
-- **`01_langgraph_agent_no_mcp.py`** - Basic LangGraph agent with local tools
-- **`02_langgraph_agent_mcp.py`** - LangGraph agent with single MCP server
-- **`03_langgraph_agent_mcp_multiply.py`** - LangGraph agent with multiple local MCP servers
-- **`04_mcp_external_servers_local.py`** - LangGraph agent with local + external MCP servers
+- **`01_langgraph_agent_no_mcp.py`** - Basic LangGraph agent with local tools (no MCP)
+- **`02_mcp_stdio_local.py`** - LangGraph agent with local MCP servers via stdio transport
+- **`03_mcp_stdio_external_package.py`** - LangGraph agent with external MCP packages via stdio (includes FastAPI web interface)
+- **`04_mcp_http_external_package.py`** - LangGraph agent with remote HTTP MCP servers + local servers (includes FastAPI web interface with Supabase integration)
 
 ## Resources
 - [MCP Servers Directory](https://mcpservers.org/) - Find more MCP servers
