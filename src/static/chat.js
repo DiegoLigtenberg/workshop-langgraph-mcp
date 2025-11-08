@@ -125,6 +125,7 @@ function sendMessage(text, showUserBubble = true) {
                 let toolsUsed = false;
                 let buffer = ''; // Buffer for incomplete chunks
                 let finalMessageProcessed = false; // Track if final message was already processed
+                let processingIndicator = null; // Reference to loading indicator div
                 
                 function extractMarker(marker) {
                     const pattern = new RegExp(marker + ':(.+?)(?=\\n__TOOL_CALL__:|\\n__TOOL_CALL_RESULT__:|\\n__FINAL__:|$)', 's');
@@ -140,8 +141,35 @@ function sendMessage(text, showUserBubble = true) {
                     return null;
                 }
                 
+                function showProcessingIndicator() {
+                    if (!processingIndicator) {
+                        processingIndicator = document.createElement('div');
+                        processingIndicator.className = 'message ai';
+                        processingIndicator.innerText = '...';
+                        const lastChild = chatWindow.lastElementChild;
+                        if (lastChild) {
+                            chatWindow.insertBefore(processingIndicator, lastChild.nextSibling);
+                        } else {
+                            chatWindow.appendChild(processingIndicator);
+                        }
+                        mainContainer.scrollTop = mainContainer.scrollHeight;
+                    } else {
+                        const lastChild = chatWindow.lastElementChild;
+                        if (lastChild && lastChild !== processingIndicator) {
+                            chatWindow.removeChild(processingIndicator);
+                            chatWindow.insertBefore(processingIndicator, lastChild.nextSibling);
+                        }
+                    }
+                }
+                
+                function hideProcessingIndicator() {
+                    if (processingIndicator && processingIndicator.parentNode) {
+                        processingIndicator.remove();
+                        processingIndicator = null;
+                    }
+                }
+                
                 function processBuffer() {
-                    // Display text before first marker
                     const markers = ['__TOOL_CALL__', '__TOOL_CALL_RESULT__', '__FINAL__'];
                     const firstMarker = markers.find(m => buffer.includes(m + ':'));
                     
@@ -162,7 +190,6 @@ function sendMessage(text, showUserBubble = true) {
                         }
                     }
                     
-                    // Process markers
                     while (true) {
                         let processed = false;
                         
@@ -178,6 +205,7 @@ function sendMessage(text, showUserBubble = true) {
                                 toolDiv.className = 'message tool';
                                 toolDiv.innerHTML = '<b>Tool Call:</b> <span>' + msg + '</span>';
                                 chatWindow.appendChild(toolDiv);
+                                showProcessingIndicator();
                                 processed = true;
                             }
                         }
@@ -197,6 +225,7 @@ function sendMessage(text, showUserBubble = true) {
                                     toolDiv.innerHTML = '<b>Tool Result:</b> <span>' + msg.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>';
                                 }
                                 chatWindow.appendChild(toolDiv);
+                                showProcessingIndicator();
                                 processed = true;
                             }
                         }
@@ -204,6 +233,7 @@ function sendMessage(text, showUserBubble = true) {
                         if (buffer.includes('__FINAL__:') && !finalMessageProcessed) {
                             const finalMessage = extractMarker('__FINAL__');
                             if (finalMessage) {
+                                hideProcessingIndicator();
                                 if (toolsUsed) {
                                     if (aiMsgDiv.parentNode) aiMsgDiv.remove();
                                     aiMsgDiv = document.createElement('div');
@@ -230,12 +260,13 @@ function sendMessage(text, showUserBubble = true) {
                     }
                     
                     if (done) {
-                        // Process any remaining buffer
                         let lastLength;
                         do {
                             lastLength = buffer.length;
                             processBuffer();
                         } while (buffer.length !== lastLength && buffer.length > 0);
+                        
+                        hideProcessingIndicator();
                         
                         userInput.disabled = false;
                         sendBtn.disabled = false;
