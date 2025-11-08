@@ -29,6 +29,7 @@ Example:
   Result: "5 * 8 = 40. Created result.docx with the result."
 """
 
+# put verbose to true to see chat and tool results in terminal
 VERBOSE = False
 
 

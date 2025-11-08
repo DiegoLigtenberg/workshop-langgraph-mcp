@@ -205,8 +205,20 @@ body.dark .message a:hover {
 .message.tool {
   max-width: 40%;
   align-self: flex-start;
-  color: var(--text-secondary);
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(244, 130, 31, 0.15);
+  border: 1px solid rgba(244, 130, 31, 0.3);
+  color: rgba(244, 130, 31, 0.95);
+  /* color: var(--text-secondary); //uncomment this to use the grey mode color for the tool messages */
   font: var(--font-system);
+  font-weight: 500;
+}
+
+body.dark .message.tool {
+  background: rgba(244, 130, 31, 0.2);
+  border: 1px solid rgba(244, 130, 31, 0.4);
+  color: rgba(255, 200, 100, 0.95);
 }
 
 .input-area {

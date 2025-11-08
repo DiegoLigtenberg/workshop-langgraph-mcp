@@ -27,6 +27,7 @@ Example:
   Result: "Diego listened to 340 songs."
 """
 
+# put verbose to true to see chat and tool results in terminal
 VERBOSE = False
 
 
@@ -54,13 +55,15 @@ def create_assistant(llm_with_tools):
        
                 
                 **Best Practices:**
-                - VITAL!!! Database results contain technical IDs. If the query result is technical, 
-                try to find a connection with another table or column in order to answer the user question functionally.
+                - CRITICAL!!! Database results contain technical IDs. If the result of query/queries is/are technical, 
+                try really hard to find a connection with another table or column in order to make the answer 
+                more functionally sound and non-technical-user friendly.
                 - If after a query you get something technical, reflect on yourself and try to connect with another table (new tool call),
                 to get a better more functional answer.
                 - Start by listing tables if you need to understand the database structure
                 - Use execute_sql to query data - be specific in your queries
                 - Always check table names before querying them
+                - docs tool contains no relevant information regardinging vibify project.
                 - IMPORTANT: Always filter songs by is_public = true when querying the songs table (exclude private songs)
                 - When mentioning 1-5 songs, always provide shareable links in this format:
                   https://vibify.up.railway.app/share/song/{song_id_uuid}
@@ -212,13 +215,16 @@ if __name__ == "__main__":
 
     """Example Questions:
     1) Hi who listens to most music?
-    2) What is a stream?
-    3) What is the most popular song?
-    4) if you look at the schema of this database, do you see security issues?
+    2) What song is streamed the most?
+    3) if you look at the schema of this database, do you see security issues?
+    4) What is the actual usecase for public and private songs?
+    5) BONUS: Ask question 1) again, do you get a tool call?
     
-    5) Name a song in the database.
-    6) Who is the artist of this song?
-    7) How many times is this song streamed?
-    8) Which public song is streamed the most? (note there are also some private songs which you cant see).
+    # 2+ tool calls (may require combination of questions / tool calls)
+    6) Name a song in the database, and find the artist of this song.
+    7) What genres does this song have, can you find another song with the same genre?
+    8) Who has the most playlists? Show this perons top 3 genres with counts and which playlists each genre appears in.
+    9) What is the minimum duration for a song for it to be a "streamed song"?
+    10) Pick a song, listen to it on vibify.up.railway.app, ask if the chatbot can increase streams by 10.
     
     """
