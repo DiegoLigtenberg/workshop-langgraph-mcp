@@ -1,13 +1,5 @@
-// Generate or retrieve persistent thread_id
-let thread_id = localStorage.getItem('thread_id');
-if (!thread_id) {
-    if (window.crypto && window.crypto.randomUUID) {
-        thread_id = crypto.randomUUID();
-    } else {
-        thread_id = Math.random().toString(36).substring(2) + Date.now();
-    }
-    localStorage.setItem('thread_id', thread_id);
-}
+// Generate new thread_id on each page load
+let thread_id = crypto.randomUUID();
 
 const chatWindow = document.getElementById('chat-window');
 const mainContainer = document.getElementById('main');
@@ -19,8 +11,8 @@ const newChatBtn = document.getElementById('new-chat-btn');
 document.getElementById('sidebar').insertAdjacentHTML('beforeend', '<button id="dark-mode-btn" style="width:100%;margin-top:10px;">🌙 Dark Mode</button>');
 const darkModeBtn = document.getElementById('dark-mode-btn');
 
-// Apply dark mode if set
-if (localStorage.getItem('dark_mode') === 'true') {
+// Apply dark mode by default (unless explicitly set to false)
+if (localStorage.getItem('dark_mode') !== 'false') {
     document.body.classList.add('dark');
     darkModeBtn.textContent = '☀️ Light Mode';
 }
@@ -303,7 +295,7 @@ window.addEventListener('DOMContentLoaded', function() {
 });
 
 newChatBtn.onclick = function() {
-    localStorage.removeItem('thread_id');
+    sessionStorage.removeItem('thread_id');
     thread_id = null;
     // Clear chat window
     chatWindow.innerHTML = '';
@@ -313,7 +305,7 @@ newChatBtn.onclick = function() {
     } else {
         thread_id = Math.random().toString(36).substring(2) + Date.now();
     }
-    localStorage.setItem('thread_id', thread_id);
+    sessionStorage.setItem('thread_id', thread_id);
     // Send 'who are you' as the first message in the new chat (hide user bubble)
     sendMessage('who are you', false);
 }; 

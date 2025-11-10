@@ -12,7 +12,10 @@ from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph_mcp.configuration import get_llm
-from langgraph_mcp.streaming_utils import chat_endpoint_handler
+from langgraph_mcp.streaming_utils import (
+    chat_endpoint_handler,
+    truncate_messages_safely,
+)
 
 """
 LangGraph Agent with Remote HTTP MCP + External Package
@@ -28,7 +31,7 @@ Example:
 """
 
 # put verbose to true to see chat and tool results in terminal
-VERBOSE = False
+VERBOSE = True
 
 
 # Define the state of the graph
@@ -100,15 +103,14 @@ def create_assistant(llm_with_tools):
     async def assistant(state: MessageState):
         # Always ensure system message is first (remove any existing system messages first)
         messages = state.messages
-        # Remove any existing system messages
-        messages = [msg for msg in messages if not isinstance(msg, SystemMessage)]
+        # Remove system messages and truncate msg history to preserve token usage
+        messages = truncate_messages_safely(messages)
+
         # Always prepend system message
         messages = [system_prompt] + messages
 
         response = await llm_with_tools.ainvoke(messages)
-        # add_messages reducer will automatically merge with existing messages
-        state.messages = [response]
-        return state
+        return {"messages": [response]}
 
     return assistant
 
@@ -218,17 +220,18 @@ if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
     """Example Questions:
-    1) Hi who listens to most music?
-    2) What song is streamed the most?
-    3) if you look at the schema of this database, do you see security issues?
-    4) What is the actual usecase for public and private songs?
+    1) Name a song in the database.
+    2) Hi who listens to most music?
+    3) What song is streamed the most?
+    4) Are there any database integrity issues if a user is deleted?
+    5) Can all songs be shared in a playlist?
     5) BONUS: Ask question 1) again, do you get a tool call?
     
     # 2+ tool calls (may require combination of questions / tool calls)
-    6) Name a song in the database, and find the artist of this song.
-    7) What genres does this song have, can you find another song with the same genre?
-    8) Who has the most playlists? Show this perons top 3 genres with counts and which playlists each genre appears in.
+    6) Name a new song in the database, and find the genres of this song.
+    7) Can you find another song with the same exact same genres, how many songs in entire database have these genres?
+    8) Can you show the top playlist owner, three songs from their largest playlist, and each song’s stream count?
     9) What is the minimum duration for a song for it to be a "streamed song"?
-    10) Pick a song, listen to it on vibify.up.railway.app, ask if the chatbot can increase streams by 10.
+    10) Can you increase the streams of the song by 10?
     
     """
