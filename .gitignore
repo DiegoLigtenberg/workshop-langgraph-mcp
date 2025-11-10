@@ -187,7 +187,3 @@ cython_debug/
 src/langgraph_mcp/streamable_http_mcp_server/*
 !src/langgraph_mcp/streamable_http_mcp_server/server-code-explorer.py
 !src/langgraph_mcp/streamable_http_mcp_server/fastmcp-flow.txt
-
-# Docker
-Dockerfile
-.dockerignore
