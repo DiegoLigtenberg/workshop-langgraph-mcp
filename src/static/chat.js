@@ -87,6 +87,7 @@ function sendMessage(text, showUserBubble = true) {
     if (!text) return;
     if (showUserBubble) appendMessage(text, 'user');
     userInput.value = '';
+    userInput.style.height = 'auto';
     userInput.disabled = true;
     sendBtn.disabled = true;
 
@@ -283,8 +284,22 @@ sendBtn.onclick = function() {
     sendMessage(text);
 };
 
+// Auto-resize textarea to grow with content
+userInput.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+});
+
 userInput.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') sendBtn.onclick();
+    if (e.key === 'Enter') {
+        if (e.shiftKey) {
+            // Allow default behavior (newline) - input event will handle resize
+        } else {
+            // Prevent default and send message for Enter alone
+            e.preventDefault();
+            sendBtn.onclick();
+        }
+    }
 });
 
 // On page load, if chat is empty, send 'who are you' as the first message (hide user bubble)

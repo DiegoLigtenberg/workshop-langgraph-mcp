@@ -110,9 +110,6 @@ async def chat_endpoint_handler(
     # Ensure thread_id is valid and unique
     if not thread_id or (isinstance(thread_id, str) and not thread_id.strip()):
         thread_id = str(uuid.uuid4())
-        print(f"Generated new thread_id: {thread_id}")
-    else:
-        print(f"Using thread_id: {thread_id}")
 
     langgraph_app = request.app.state.langgraph_app
     return StreamingResponse(

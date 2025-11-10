@@ -222,7 +222,7 @@ body.dark .message.tool {
 }
 
 .input-area {
-  height: 64px;
+  min-height: 64px;
   width: 100%;
   max-width: 600px;
   min-width: 300px;
@@ -243,6 +243,10 @@ body.dark .message.tool {
   border: none;
   color: var(--text-primary);
   font: var(--font-interactive);
+  resize: none;
+  overflow-y: hidden;
+  min-height: 24px;
+  max-height: 200px;
 }
 
 .input::placeholder {
