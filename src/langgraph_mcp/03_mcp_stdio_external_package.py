@@ -12,7 +12,10 @@ from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph_mcp.configuration import get_llm
-from langgraph_mcp.streaming_utils import chat_endpoint_handler
+from langgraph_mcp.streaming_utils import (
+    chat_endpoint_handler,
+    truncate_messages_safely,
+)
 
 """
 LangGraph Agent with External MCP Packages (stdio)
@@ -30,7 +33,7 @@ Example:
 """
 
 # put verbose to true to see chat and tool results in terminal
-VERBOSE = False
+VERBOSE = True
 
 
 # Define the state of the graph
@@ -42,8 +45,9 @@ def create_assistant(llm_with_tools):
     """Create an assistant function with access to the LLM"""
 
     async def assistant(state: MessageState):
-        state.messages = await llm_with_tools.ainvoke(state.messages)
-        return state
+        messages = truncate_messages_safely(state.messages)
+        response = await llm_with_tools.ainvoke(messages)
+        return {"messages": [response]}
 
     return assistant
 
