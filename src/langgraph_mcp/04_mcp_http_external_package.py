@@ -219,7 +219,8 @@ if __name__ == "__main__":
 
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
-    """Example Questions:
+    """
+    Example Questions:
     1) Name a song in the database.
     2) Hi who listens to most music?
     3) What song is streamed the most?
@@ -230,8 +231,7 @@ if __name__ == "__main__":
     # 2+ tool calls (may require combination of questions / tool calls)
     6) Name a new song in the database, and find the genres of this song.
     7) Can you find another song with the same exact same genres, how many songs in entire database have these genres?
-    8) Can you show the top playlist owner, three songs from their largest playlist, and each song’s stream count?
+    8) Can you show the top playlist owner, three songs from their largest playlist, and each songs stream count?
     9) What is the minimum duration for a song for it to be a "streamed song"?
     10) Can you increase the streams of the song by 10?
-    
     """
