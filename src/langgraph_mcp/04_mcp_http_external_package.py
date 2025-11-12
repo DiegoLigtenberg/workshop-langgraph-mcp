@@ -68,6 +68,7 @@ def create_assistant(llm_with_tools):
                 
                 - Use execute_sql to query data - be specific in your queries
                 - Always check table names before querying them
+                - CRITICAL: When querying genres.name, use ILIKE for case-insensitive matching (e.g., genres.name ILIKE 'rock' not genres.name = 'Rock')
                 - docs tool contains no relevant information regarding vibify project.
                 - When mentioning 1-5 songs, always provide shareable links in this format:
                   https://vibify.up.railway.app/share/song/{song_id_uuid}
