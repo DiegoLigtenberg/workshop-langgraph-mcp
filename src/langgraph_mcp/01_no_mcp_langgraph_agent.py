@@ -103,7 +103,7 @@ if __name__ == "__main__":
     # setup input state for the graph
     input_state = MessageState(
         messages=[
-            HumanMessage(content="Please, make a word document where you add 3 and 4")
+            HumanMessage(content="Please, add 3 and 4 and put the result in a word document")
         ]
     )
 
