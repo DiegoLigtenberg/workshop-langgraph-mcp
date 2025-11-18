@@ -110,12 +110,12 @@ if __name__ == "__main__":
     # Run the graph with the input state and the config from the langraph
     result = react_graph_memory.invoke(input_state, config)
 
-    # for m in result["messages"]:
-    #     m.pretty_print()
-
-    new_input = MessageState(
-        messages=[HumanMessage(content="What is the first question that was asked?")]
-    )
-    new_result = react_graph_memory.invoke(new_input, config)
-    for m in new_result["messages"]:
+    for m in result["messages"]:
         m.pretty_print()
+
+    # new_input = MessageState(
+    #     messages=[HumanMessage(content="What is the first question that was asked?")]
+    # )
+    # new_result = react_graph_memory.invoke(new_input, config)
+    # for m in new_result["messages"]:
+    #     m.pretty_print()
